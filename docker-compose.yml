@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@db:5432/personal_finances
+    volumes:
+      - ./uploads:/app/uploads
+
+volumes:
+  postgres_data: 

@@ -1,0 +1,31 @@
+!Type:Bank
+D01/15/2024
+T-125.50
+PStarbucks Coffee
+LCoffee
+SFood & Dining
+^
+D01/16/2024
+T-45.00
+PGas Station
+LTransportation
+SFuel
+^
+D01/17/2024
+T-89.99
+PAmazon.com
+LShopping
+SOnline
+^
+D01/18/2024
+T2500.00
+PSalary Deposit
+LIncome
+SSalary
+^
+D01/19/2024
+T-156.78
+PGrocery Store
+LFood & Dining
+SGroceries
+^ 
