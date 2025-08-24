@@ -407,16 +407,14 @@ export default function Transactions() {
         <Group justify="space-between" align="center">
           <Title order={1}>Transactions</Title>
           <Group>
-            <Button variant="light" onClick={() => setIsCreateOpen(true)}>
+            <Button onClick={() => setIsCreateOpen(true)}>
               Add Manual Transaction
             </Button>
-            <Button onClick={handleBackToDashboard} variant="light">
-              Back to Dashboard
-            </Button>
+            <Button onClick={handleBackToDashboard}>Back to Dashboard</Button>
           </Group>
         </Group>
 
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card shadow="sm" padding="lg" radius="md">
           <Stack gap="md">
             <Title order={2}>Filter Transactions</Title>
             <Grid>
@@ -463,7 +461,7 @@ export default function Transactions() {
         </Card>
 
         {selectedAccount && selectedMonth ? (
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Card shadow="sm" padding="lg" radius="md">
             <Stack gap="md">
               <Group justify="space-between" align="center">
                 <Title order={2}>
@@ -474,13 +472,12 @@ export default function Transactions() {
                   })}
                 </Title>
                 <Group>
-                  <Badge variant="light" color="blue">
+                  <Badge variant="light">
                     {isLoading
                       ? "Loading..."
                       : `${transactions.length} transactions`}
                   </Badge>
                   <Button
-                    variant="light"
                     disabled={
                       Object.keys(selectedRows).filter((k) => selectedRows[k])
                         .length === 0
@@ -562,18 +559,30 @@ export default function Transactions() {
                         </Table.Td>
                         <Table.Td>{transaction.description}</Table.Td>
                         <Table.Td>
-                          <Badge variant="light" color="gray">
+                          <Badge
+                            color={
+                              transaction.category === "Uncategorized"
+                                ? "grey"
+                                : "category"
+                            }
+                          >
                             {transaction.category}
                           </Badge>
                         </Table.Td>
                         <Table.Td>
-                          <Badge variant="light" color="blue">
+                          <Badge
+                            color={
+                              transaction.subCategory === ""
+                                ? "grey"
+                                : "subCategory"
+                            }
+                          >
                             {transaction.subCategory}
                           </Badge>
                         </Table.Td>
                         <Table.Td>
                           {transaction.debitAmount > 0 ? (
-                            <Text c="red" fw={500}>
+                            <Text c="debit" fw={500}>
                               {formatCurrency(transaction.debitAmount)}
                             </Text>
                           ) : (
@@ -582,7 +591,7 @@ export default function Transactions() {
                         </Table.Td>
                         <Table.Td>
                           {transaction.creditAmount > 0 ? (
-                            <Text c="green" fw={500}>
+                            <Text c="credit" fw={500}>
                               {formatCurrency(transaction.creditAmount)}
                             </Text>
                           ) : (
@@ -591,9 +600,7 @@ export default function Transactions() {
                         </Table.Td>
                         <Table.Td>
                           {transaction.linkedTransactionId ? (
-                            <Badge variant="light" color="orange">
-                              Linked
-                            </Badge>
+                            <Badge color="orange">Linked</Badge>
                           ) : (
                             <Text c="dimmed">-</Text>
                           )}
@@ -606,7 +613,7 @@ export default function Transactions() {
             </Stack>
           </Card>
         ) : (
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Card shadow="sm" padding="lg" radius="md">
             <Text c="dimmed" ta="center" py="xl">
               Please select an account and month to view transactions.
             </Text>
@@ -636,9 +643,7 @@ export default function Transactions() {
             onChange={(v) => setBulkSubCategory(v)}
           />
           <Group justify="flex-end">
-            <Button variant="light" onClick={() => setBulkEditOpen(false)}>
-              Cancel
-            </Button>
+            <Button onClick={() => setBulkEditOpen(false)}>Cancel</Button>
             <Button
               onClick={() => {
                 const ids = Object.keys(selectedRows).filter(
@@ -719,9 +724,7 @@ export default function Transactions() {
             }
           />
           <Group justify="flex-end">
-            <Button variant="light" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
+            <Button onClick={() => setIsCreateOpen(false)}>Cancel</Button>
             <Button onClick={handleCreateTransaction}>Save</Button>
           </Group>
         </Stack>

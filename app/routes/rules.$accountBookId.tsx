@@ -50,7 +50,12 @@ export async function loader({ params }: LoaderFunctionArgs) {
     getDistinctCategories(accountBookId),
     getDistinctSubCategories(accountBookId),
   ]);
-  return json({ accountBookName: book?.name || "", rules, categories, subCategories });
+  return json({
+    accountBookName: book?.name || "",
+    rules,
+    categories,
+    subCategories,
+  });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -233,7 +238,6 @@ export default function RulesPage() {
               Add Rule
             </Button>
             <Button
-              variant="light"
               onClick={() =>
                 fetcher.submit({ intent: "apply-rules" } as any, {
                   method: "post",
@@ -246,7 +250,7 @@ export default function RulesPage() {
           </Group>
         </Group>
 
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card shadow="sm" padding="lg" radius="md">
           <Stack gap="md">
             {rules.length === 0 ? (
               <Text c="dimmed" ta="center" py="xl">
@@ -306,9 +310,7 @@ export default function RulesPage() {
             onChange={(v) => setForm((prev) => ({ ...prev, subCategory: v }))}
           />
           <Group justify="flex-end">
-            <Button variant="light" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
+            <Button onClick={() => setIsCreateOpen(false)}>Cancel</Button>
             <Button
               onClick={() => {
                 fetcher.submit({ intent: "create-rule", ...form } as any, {

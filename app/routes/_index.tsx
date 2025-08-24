@@ -155,7 +155,7 @@ export default function Index() {
           </Text>
         </Stack>
 
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card shadow="sm" padding="lg" radius="md">
           <Stack gap="lg">
             <Group justify="flex-end" align="center">
               <Button onClick={() => setIsCreateModalOpen(true)}>
@@ -177,7 +177,6 @@ export default function Index() {
                 {/* Create New tile */}
                 <Grid.Col span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
                   <Card
-                    withBorder
                     radius="md"
                     padding="md"
                     style={{ height: "100%" }}
@@ -186,11 +185,8 @@ export default function Index() {
                     <Stack gap="sm">
                       <Paper
                         radius="md"
-                        withBorder
                         h={180}
                         style={{
-                          background:
-                            "linear-gradient(135deg, #f1f5f0 0%, #eaf3ea 100%)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -218,7 +214,6 @@ export default function Index() {
                       shadow="xs"
                       padding="md"
                       radius="md"
-                      withBorder
                       style={{ cursor: "pointer", height: "100%" }}
                       aria-label={`Open ${accountBook.name}`}
                       onClick={() => handleSelectAccountBook(accountBook)}
@@ -226,27 +221,22 @@ export default function Index() {
                       <Stack gap="sm">
                         <Paper
                           radius="md"
-                          withBorder
                           h={180}
                           style={{
-                            background:
-                              "linear-gradient(135deg, #f7efe7 0%, #f1e7df 100%)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                           }}
                         >
                           <Image
-                            src="/logo-light.png"
+                            src="/doodle-36.png"
                             alt="cover"
-                            h={100}
-                            w={100}
+                            h={200}
+                            w={200}
                             fit="contain"
                           />
                         </Paper>
-                        <Text fw={600} c="dark">
-                          {accountBook.name}
-                        </Text>
+                        <Text fw={600}>{accountBook.name}</Text>
                         <Text c="dimmed" size="sm">
                           Last updated {formatDateUTC(accountBook.updatedAt)}
                         </Text>
@@ -277,10 +267,7 @@ export default function Index() {
             />
             <input type="hidden" name="intent" value="create-account-book" />
             <Group justify="flex-end">
-              <Button
-                variant="light"
-                onClick={() => setIsCreateModalOpen(false)}
-              >
+              <Button onClick={() => setIsCreateModalOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" loading={fetcher.state !== "idle"}>
