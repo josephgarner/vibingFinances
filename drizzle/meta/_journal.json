@@ -30,5 +30,21 @@
       "tag": "0003_tx_indexes",
       "breakpoints": true
     }
+    ,
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1754480000000,
+      "tag": "0002_split_lists",
+      "breakpoints": true
+    }
+    ,
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1754480001000,
+      "tag": "0003_flow_budgets",
+      "breakpoints": true
+    }
   ]
 }

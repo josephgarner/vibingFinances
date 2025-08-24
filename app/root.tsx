@@ -18,14 +18,7 @@ import {
   ActionIcon,
 } from "@mantine/core";
 import { Link, useLocation, useParams } from "@remix-run/react";
-import {
-  IconLayoutDashboard,
-  IconFileText,
-  IconBooks,
-  IconChevronLeft,
-  IconChevronRight,
-  IconAdjustments,
-} from "@tabler/icons-react";
+import { IconLayoutDashboard, IconFileText, IconBooks, IconChevronLeft, IconChevronRight, IconPercentage, IconArrowsSplit, IconAdjustments } from "@tabler/icons-react";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 
@@ -108,18 +101,13 @@ export default function App() {
 
   if (isLanding) return <Outlet />;
 
-  const linkStyle: React.CSSProperties = {
-    width: "100%",
-    justifyContent: "flex-start",
-  };
-  const isDash =
-    accountBookId &&
-    location.pathname.startsWith(`/dashboard/${accountBookId}`);
-  const isTx =
-    accountBookId &&
-    location.pathname.startsWith(`/transactions/${accountBookId}`);
   const isRules =
     accountBookId && location.pathname.startsWith(`/rules/${accountBookId}`);
+  const linkStyle: React.CSSProperties = { width: '100%', justifyContent: 'flex-start' };
+  const isDash = accountBookId && location.pathname.startsWith(`/dashboard/${accountBookId}`);
+  const isTx = accountBookId && location.pathname.startsWith(`/transactions/${accountBookId}`);
+  const isSplit = accountBookId && location.pathname.startsWith(`/split-calculator/${accountBookId}`);
+  const isFlow = accountBookId && location.pathname.startsWith(`/flow-budget/${accountBookId}`);
 
   return (
     <AppShell
@@ -231,6 +219,28 @@ export default function App() {
               >
                 Rules
               </Button>
+            )}
+          </Tooltip>
+
+          {/* Split Calculator */}
+          <Tooltip label="Split Calculator" disabled={!collapsed} position="right">
+            {collapsed ? (
+              <ActionIcon component={Link} to={accountBookId ? `/split-calculator/${accountBookId}` : '/'} variant={isSplit ? 'filled' : 'subtle'} aria-label="Split Calculator">
+                <IconPercentage size={18} />
+              </ActionIcon>
+            ) : (
+              <Button component={Link} to={accountBookId ? `/split-calculator/${accountBookId}` : '/'} variant={isSplit ? 'filled' : 'subtle'} leftSection={<IconPercentage size={18} />} style={linkStyle}>Split Calculator</Button>
+            )}
+          </Tooltip>
+
+          {/* Flow Budget */}
+          <Tooltip label="Flow Budget" disabled={!collapsed} position="right">
+            {collapsed ? (
+              <ActionIcon component={Link} to={accountBookId ? `/flow-budget/${accountBookId}` : '/'} variant={isFlow ? 'filled' : 'subtle'} aria-label="Flow Budget">
+                <IconArrowsSplit size={18} />
+              </ActionIcon>
+            ) : (
+              <Button component={Link} to={accountBookId ? `/flow-budget/${accountBookId}` : '/'} variant={isFlow ? 'filled' : 'subtle'} leftSection={<IconArrowsSplit size={18} />} style={linkStyle}>Flow Budget</Button>
             )}
           </Tooltip>
 

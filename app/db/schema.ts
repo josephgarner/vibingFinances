@@ -85,6 +85,28 @@ export const categoryRules = pgTable("category_rules", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const splitLists = pgTable('split_lists', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  accountBookId: uuid('account_book_id').notNull().references(() => accountBooks.id, { onDelete: 'cascade' }),
+  // data shape: { items: [{ name, totalAmount, splits: [{ label, percent }] }] }
+  data: jsonb('data').$type<{ items: { name: string; totalAmount: number; splits: { label: string; percent: number }[] }[] }>().notNull().default({ items: [] }),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const flowBudgets = pgTable('flow_budgets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  accountBookId: uuid('account_book_id').notNull().references(() => accountBooks.id, { onDelete: 'cascade' }),
+  incomeAccountId: uuid('income_account_id'),
+  incomeAmount: decimal('income_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  // rules: [{ label, accountId?, kind: 'fixed'|'percent', amount }]
+  rules: jsonb('rules').$type<{ label: string; accountId?: string; kind: 'fixed' | 'percent'; amount: number }[]>().notNull().default([]),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 // Relations
 export const accountBooksRelations = relations(accountBooks, ({ many }) => ({
   accounts: many(accounts),

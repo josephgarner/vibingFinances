@@ -4,6 +4,17 @@
   "version": "5",
   "dialect": "postgresql",
   "tables": {
+    "split_lists": {
+      "name": "split_lists",
+      "schema": {
+        "id": {"name": "id", "type": "uuid", "primaryKey": true, "default": "gen_random_uuid()"},
+        "name": {"name": "name", "type": "text", "notNull": true},
+        "account_book_id": {"name": "account_book_id", "type": "uuid", "notNull": true},
+        "data": {"name": "data", "type": "jsonb", "notNull": true, "default": "'{\"items\":[]}'::jsonb"},
+        "updated_at": {"name": "updated_at", "type": "timestamp", "notNull": true, "default": "now()"},
+        "created_at": {"name": "created_at", "type": "timestamp", "notNull": true, "default": "now()"}
+      }
+    },
     "category_rules": {
       "name": "category_rules",
       "schema": "public",
@@ -58,3 +69,5 @@
     }
   }
 }
+
+

@@ -259,12 +259,8 @@ export default function Dashboard() {
     navigate(`/transactions/${accountBookId}`);
   };
 
-  const formatBarData = (
-    historical: { month: string; debits: number; credits: number }[]
-  ) => {
-    const sorted = [...historical].sort((a, b) =>
-      a.month.localeCompare(b.month)
-    );
+  const formatBarData = (historical: { month: string; debits: number; credits: number }[]) => {
+    const sorted = [...historical].sort((a, b) => a.month.localeCompare(b.month));
     const recent = sorted.slice(-6);
     return recent.map((item) => ({
       month: item.month,
@@ -380,17 +376,40 @@ export default function Dashboard() {
                     />
                   </Group>
                   <div style={{ height: 380 }}>
-                    <ResponsiveLine
-                      data={balanceSeries()}
-                      margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
-                      xScale={{ type: "point" }}
-                      yScale={{ type: "linear", min: "auto", max: "auto" }}
-                      axisBottom={{ tickRotation: 0 }}
-                      axisLeft={{}}
-                      colors={["#228be6"]}
-                      pointSize={8}
-                      useMesh
-                    />
+                    {(() => {
+                      const series = balanceSeries();
+                      const allY = series.flatMap((s: any) => (s.data || []).map((p: any) => Number(p.y)));
+                      const lowest = allY.length ? Math.min(...allY) : 0;
+                      const yMin = lowest - Math.abs(lowest) * 0.15;
+                      return (
+                        <ResponsiveLine
+                          data={series}
+                          curve="cardinal"
+                          lineWidth={8}
+                          enableArea={true}
+                          margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
+                          xScale={{ type: 'point' }}
+                          yScale={{ type: 'linear', min: yMin, max: 'auto' }}
+                          areaBaselineValue={yMin}
+                          layers={[ 'grid', 'markers', 'areas', 'axes', 'lines', 'points', 'mesh', 'legends' ]}
+                          axisBottom={{ tickRotation: 0 }}
+                          axisLeft={{}}
+                          colors={[ '#228be6' ]}
+                          pointSize={8}
+                          tooltip={({ point }: any) => {
+                            const x = String(point.data.x);
+                            const y = Number(point.data.y).toFixed(2);
+                            return (
+                              <div style={{ background: 'white', padding: '6px 8px', borderRadius: 6, boxShadow: '0 2px 10px rgba(0,0,0,0.1)', border: '1px solid #e9ecef' }}>
+                                <div style={{ fontSize: 12, color: '#495057' }}>{x}</div>
+                                <div style={{ fontWeight: 600 }}>${y}</div>
+                              </div>
+                            );
+                          }}
+                          useMesh
+                        />
+                      );
+                    })()}
                   </div>
                 </Stack>
               </Card>
@@ -399,106 +418,48 @@ export default function Dashboard() {
             {/* Right: Column of per-account debit/credit bar graphs with settings (1/3) */}
             <Grid.Col span={{ base: 12, lg: 4 }}>
               <Stack gap="md">
-                {[...accounts]
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((account) => (
-                    <Card
-                      key={account.id}
-                      shadow="sm"
-                      padding="lg"
-                      radius="md"
-                      withBorder
-                    >
-                      <Stack gap="sm">
-                        <Group justify="space-between" align="center">
-                          <Text fw={600}>{account.name}</Text>
-                          <Menu shadow="md" width={220} position="bottom-end">
-                            <Menu.Target>
-                              <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="lg"
-                                radius="md"
-                                aria-label="Settings"
-                              >
-                                <IconSettings size={18} />
-                              </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                              <Menu.Item
-                                onClick={() =>
-                                  setMonthClear({
-                                    open: true,
-                                    accountId: account.id,
-                                  })
-                                }
-                              >
-                                Clear month…
-                              </Menu.Item>
-                              <Menu.Item
-                                color="red"
-                                onClick={() =>
-                                  setConfirm({
-                                    open: true,
-                                    title: "Clear all data",
-                                    description:
-                                      "This will remove all transactions for this account. This action cannot be undone.",
-                                    intent: "clear-all",
-                                    accountId: account.id,
-                                  })
-                                }
-                              >
-                                Clear all data
-                              </Menu.Item>
-                              <Divider my="xs" />
-                              <Menu.Item
-                                color="red"
-                                onClick={() =>
-                                  setConfirm({
-                                    open: true,
-                                    title: "Delete account",
-                                    description:
-                                      "This will delete the account and all its data. This action cannot be undone.",
-                                    intent: "delete-account",
-                                    accountId: account.id,
-                                  })
-                                }
-                              >
-                                Delete account
-                              </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
-                        </Group>
-                        {account.historicalBalance.length > 0 && (
-                          <div style={{ height: 180 }}>
-                            <ResponsiveBar
-                              data={formatBarData(
-                                (account.historicalBalance as any) || []
-                              )}
-                              keys={["Debits", "Credits"]}
-                              indexBy="month"
-                              groupMode="grouped"
-                              margin={{
-                                top: 10,
-                                right: 10,
-                                bottom: 30,
-                                left: 40,
-                              }}
-                              padding={0.3}
-                              colors={(bar) =>
-                                bar.id === "Debits" ? "#fa5252" : "#37b24d"
-                              }
-                              axisBottom={{ tickRotation: 0 }}
-                              axisLeft={{}}
-                              valueFormat={(v) => `$${Number(v).toFixed(2)}`}
-                              labelSkipWidth={24}
-                              labelSkipHeight={14}
-                            />
-                          </div>
-                        )}
-                      </Stack>
-                    </Card>
-                  ))}
+                {[...accounts].sort((a,b) => a.name.localeCompare(b.name)).map((account) => (
+                  <Card key={account.id} shadow="sm" padding="lg" radius="md" withBorder>
+                    <Stack gap="sm">
+                      <Group justify="space-between" align="center">
+                        <Text fw={600}>{account.name}</Text>
+                        <Menu shadow="md" width={220} position="bottom-end">
+                          <Menu.Target>
+                            <ActionIcon variant="subtle" color="gray" size="lg" radius="md" aria-label="Settings">
+                              <IconSettings size={18} />
+                            </ActionIcon>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item onClick={() => setMonthClear({ open: true, accountId: account.id })}>Clear month…</Menu.Item>
+                            <Menu.Item color="red" onClick={() => setConfirm({ open: true, title: 'Clear all data', description: 'This will remove all transactions for this account. This action cannot be undone.', intent: 'clear-all', accountId: account.id })}>Clear all data</Menu.Item>
+                            <Divider my="xs" />
+                            <Menu.Item color="red" onClick={() => setConfirm({ open: true, title: 'Delete account', description: 'This will delete the account and all its data. This action cannot be undone.', intent: 'delete-account', accountId: account.id })}>Delete account</Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
+                      </Group>
+                      {account.historicalBalance.length > 0 && (
+                        <div style={{ height: 180 }}>
+                          <ResponsiveBar
+                            data={formatBarData(account.historicalBalance as any)}
+                            keys={["Debits", "Credits"]}
+                            indexBy="month"
+                            groupMode="grouped"
+                            layout="vertical"
+                            borderRadius={4}
+                            margin={{ top: 10, right: 10, bottom: 30, left: 40 }}
+                            padding={0.3}
+                            colors={(bar) => (bar.id === 'Debits' ? '#fa5252' : '#37b24d')}
+                            axisBottom={{ tickRotation: 0 }}
+                            axisLeft={{}}
+                            valueFormat={(v) => `$${Number(v).toFixed(2)}`}
+                            labelSkipWidth={100}
+                            labelSkipHeight={100}
+                          />
+                        </div>
+                      )}
+                    </Stack>
+                  </Card>
+                ))}
               </Stack>
             </Grid.Col>
           </Grid>

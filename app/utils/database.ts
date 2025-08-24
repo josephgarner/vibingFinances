@@ -1,12 +1,7 @@
-import { eq, and, gte, lte, lt } from "drizzle-orm";
-import { db } from "../db";
-import {
-  accountBooks,
-  accounts,
-  transactions,
-  categoryRules,
-} from "../db/schema";
-import type { QIFTransaction } from "./qifParser";
+import { eq, and, gte, lte, lt } from 'drizzle-orm';
+import { db } from '../db';
+import { accountBooks, accounts, transactions, splitLists, flowBudgets, categoryRules } from '../db/schema';
+import type { QIFTransaction } from './qifParser';
 
 export interface DatabaseTransaction {
   id: string;
@@ -492,4 +487,93 @@ export async function getAccountBook(
     name: accountBook.name,
     updatedAt: accountBook.updatedAt.toISOString(),
   };
+} 
+
+export interface SplitItemSplit { label: string; percent: number }
+export interface SplitItem { name: string; totalAmount: number; splits: SplitItemSplit[] }
+export interface SplitList { id: string; name: string; accountBookId: string; items: SplitItem[]; updatedAt: string }
+
+export async function getSplitLists(accountBookId: string): Promise<SplitList[]> {
+  const rows = await db.select().from(splitLists).where(eq(splitLists.accountBookId, accountBookId));
+  return rows.map((r) => ({ id: r.id, name: r.name, accountBookId: r.accountBookId, items: (r.data as any).items || [], updatedAt: r.updatedAt.toISOString() }));
+}
+
+export async function createSplitList(accountBookId: string, name: string, items: SplitItem[]): Promise<SplitList> {
+  const [row] = await db.insert(splitLists).values({ accountBookId, name, data: { items } }).returning();
+  return { id: row.id, name: row.name, accountBookId: row.accountBookId, items, updatedAt: row.updatedAt.toISOString() };
+}
+
+export async function updateSplitList(id: string, name: string, items: SplitItem[]): Promise<void> {
+  await db.update(splitLists).set({ name, data: { items }, updatedAt: new Date() }).where(eq(splitLists.id, id));
+}
+
+export async function deleteSplitList(id: string): Promise<void> {
+  await db.delete(splitLists).where(eq(splitLists.id, id));
+}
+
+// Flow Budgets
+export interface FlowBudgetRule { label: string; accountId?: string; kind: 'fixed' | 'percent'; amount: number }
+export interface FlowBudget { id: string; name: string; accountBookId: string; incomeAccountId: string | null; incomeAmount: number; rules: FlowBudgetRule[]; updatedAt: string }
+
+export async function getFlowBudgets(accountBookId: string): Promise<FlowBudget[]> {
+  const rows = await db.query.flowBudgets.findMany({
+    where: eq(flowBudgets.accountBookId, accountBookId),
+    orderBy: flowBudgets.updatedAt,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    accountBookId: r.accountBookId,
+    incomeAccountId: r.incomeAccountId || null,
+    incomeAmount: parseFloat(r.incomeAmount),
+    rules: (r.rules as any) || [],
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+export async function createFlowBudget(
+  accountBookId: string,
+  name: string,
+  incomeAccountId: string | null,
+  incomeAmount: number,
+  rules: FlowBudgetRule[],
+): Promise<FlowBudget> {
+  const [row] = await db.insert(flowBudgets).values({
+    accountBookId,
+    name,
+    incomeAccountId: incomeAccountId || null,
+    incomeAmount: incomeAmount.toString(),
+    rules,
+  }).returning();
+  return {
+    id: row.id,
+    name: row.name,
+    accountBookId: row.accountBookId,
+    incomeAccountId: row.incomeAccountId || null,
+    incomeAmount: parseFloat(row.incomeAmount),
+    rules: (row.rules as any) || [],
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export async function updateFlowBudget(
+  id: string,
+  name: string,
+  incomeAccountId: string | null,
+  incomeAmount: number,
+  rules: FlowBudgetRule[],
+): Promise<void> {
+  await db.update(flowBudgets)
+    .set({
+      name,
+      incomeAccountId: incomeAccountId || null,
+      incomeAmount: incomeAmount.toString(),
+      rules,
+      updatedAt: new Date(),
+    })
+    .where(eq(flowBudgets.id, id));
+}
+
+export async function deleteFlowBudget(id: string): Promise<void> {
+  await db.delete(flowBudgets).where(eq(flowBudgets.id, id));
 }
