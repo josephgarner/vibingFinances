@@ -224,6 +224,21 @@ export async function getDistinctCategories(
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
+export async function getDistinctSubCategories(
+  accountBookId: string
+): Promise<string[]> {
+  const list = await db.query.transactions.findMany({
+    where: eq(transactions.accountBookId, accountBookId),
+    orderBy: transactions.subCategory,
+  });
+  const set = new Set<string>();
+  for (const t of list) {
+    if (t.subCategory && t.subCategory.trim().length > 0)
+      set.add(t.subCategory);
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
 export async function updateTransactionsCategory(
   transactionIds: string[],
   category: string,

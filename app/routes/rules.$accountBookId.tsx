@@ -4,7 +4,7 @@ import type {
   ActionFunctionArgs,
 } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Container,
   Title,
@@ -17,6 +17,8 @@ import {
   Modal,
   TextInput,
   Notification,
+  Combobox,
+  useCombobox,
 } from "@mantine/core";
 import {
   useFetcher,
@@ -29,6 +31,8 @@ import {
   getCategoryRules,
   createCategoryRule,
   applyRulesToUncategorized,
+  getDistinctCategories,
+  getDistinctSubCategories,
 } from "../utils/database";
 
 export const meta: MetaFunction = () => {
@@ -40,11 +44,13 @@ export const meta: MetaFunction = () => {
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const accountBookId = params.accountBookId as string;
-  const [book, rules] = await Promise.all([
+  const [book, rules, categories, subCategories] = await Promise.all([
     getAccountBook(accountBookId),
     getCategoryRules(accountBookId),
+    getDistinctCategories(accountBookId),
+    getDistinctSubCategories(accountBookId),
   ]);
-  return json({ accountBookName: book?.name || "", rules });
+  return json({ accountBookName: book?.name || "", rules, categories, subCategories });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -77,6 +83,12 @@ export default function RulesPage() {
   const fetcher = useFetcher<typeof action>();
   const [rules, setRules] = useState((loaderData as any).rules as any[]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [categories] = useState<string[]>(
+    ((loaderData as any).categories || []) as string[]
+  );
+  const [subCategories] = useState<string[]>(
+    ((loaderData as any).subCategories || []) as string[]
+  );
   const [form, setForm] = useState({
     keyword: "",
     category: "",
@@ -86,6 +98,91 @@ export default function RulesPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  function CreatableSelect({
+    label,
+    placeholder,
+    data,
+    value,
+    onChange,
+  }: {
+    label: string;
+    placeholder: string;
+    data: string[];
+    value: string;
+    onChange: (val: string) => void;
+  }) {
+    const combobox = useCombobox({
+      onDropdownClose: () => combobox.resetSelectedOption(),
+    });
+    const [search, setSearch] = useState<string>(value || "");
+    useEffect(() => {
+      setSearch(value || "");
+    }, [value]);
+    const normalized = useMemo(
+      () =>
+        Array.from(
+          new Set((data || []).map((d) => String(d).trim()).filter(Boolean))
+        ),
+      [data]
+    );
+    const lower = search.trim().toLowerCase();
+    const filtered = normalized.filter((item) =>
+      item.toLowerCase().includes(lower)
+    );
+    const hasExact = normalized.some((item) => item.toLowerCase() === lower);
+
+    return (
+      <Combobox
+        store={combobox}
+        onOptionSubmit={(val) => {
+          if (val.startsWith("__create__:")) {
+            const created = val.replace("__create__:", "");
+            onChange(created);
+            setSearch(created);
+            combobox.closeDropdown();
+            return;
+          }
+          onChange(val);
+          setSearch(val);
+          combobox.closeDropdown();
+        }}
+      >
+        <Combobox.Target>
+          <TextInput
+            label={label}
+            placeholder={placeholder}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.currentTarget.value);
+              combobox.openDropdown();
+              combobox.updateSelectedOptionIndex();
+            }}
+            onFocus={() => combobox.openDropdown()}
+            onBlur={() => combobox.closeDropdown()}
+          />
+        </Combobox.Target>
+        <Combobox.Dropdown>
+          <Combobox.Options>
+            {filtered.length > 0 ? (
+              filtered.map((item) => (
+                <Combobox.Option value={item} key={item}>
+                  {item}
+                </Combobox.Option>
+              ))
+            ) : (
+              <Combobox.Empty>Nothing found</Combobox.Empty>
+            )}
+            {!hasExact && lower.length > 0 && (
+              <Combobox.Option value={`__create__:${search}`}>
+                {`+ Create "${search}"`}
+              </Combobox.Option>
+            )}
+          </Combobox.Options>
+        </Combobox.Dropdown>
+      </Combobox>
+    );
+  }
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -194,24 +291,19 @@ export default function RulesPage() {
               setForm((prev) => ({ ...prev, keyword: e.currentTarget.value }))
             }
           />
-          <TextInput
+          <CreatableSelect
             label="Category"
-            placeholder="e.g. Shopping"
+            placeholder="Choose or create a category"
+            data={categories}
             value={form.category}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, category: e.currentTarget.value }))
-            }
+            onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
           />
-          <TextInput
+          <CreatableSelect
             label="Sub Category"
-            placeholder="e.g. Online"
+            placeholder="Choose or create a sub category"
+            data={subCategories}
             value={form.subCategory}
-            onChange={(e) =>
-              setForm((prev) => ({
-                ...prev,
-                subCategory: e.currentTarget.value,
-              }))
-            }
+            onChange={(v) => setForm((prev) => ({ ...prev, subCategory: v }))}
           />
           <Group justify="flex-end">
             <Button variant="light" onClick={() => setIsCreateOpen(false)}>

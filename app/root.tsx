@@ -253,7 +253,7 @@ export default function App() {
                 component={Link}
                 to="/"
                 variant={"subtle"}
-                aria-label="Exit to Account Books"
+                aria-label="Exit"
               >
                 <IconBooks size={18} />
               </ActionIcon>
@@ -265,7 +265,7 @@ export default function App() {
                 leftSection={<IconBooks size={18} />}
                 style={linkStyle}
               >
-                Exit to Account Books
+                Exit
               </Button>
             )}
           </Tooltip>
