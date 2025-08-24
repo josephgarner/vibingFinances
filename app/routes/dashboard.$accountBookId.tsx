@@ -1,17 +1,20 @@
-import type { MetaFunction, LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import type {
+  MetaFunction,
+  LoaderFunctionArgs,
+  ActionFunctionArgs,
+} from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useState, useEffect } from "react";
-import { 
-  Container, 
-  Title, 
-  Card, 
-  Text, 
-  Button, 
-  Modal, 
-  TextInput, 
+import {
+  Container,
+  Title,
+  Card,
+  Text,
+  Button,
+  Modal,
+  TextInput,
   Group,
   Stack,
-  Badge,
   Grid,
   NumberInput,
   FileInput,
@@ -27,11 +30,13 @@ import { useFetcher, useLoaderData, useNavigate } from "@remix-run/react";
 import { ResponsiveBar } from "@nivo/bar";
 import { ResponsiveLine } from "@nivo/line";
 import { parseQIFFile, type QIFTransaction } from "../utils/qifParser";
-import type { DatabaseAccount, DatabaseTransaction } from "../utils/database";
+import type { DatabaseAccount } from "../utils/database";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const accountBookId = params.accountBookId as string;
-  const { getAccountsByAccountBook, getAccountBook } = await import("../utils/database");
+  const { getAccountsByAccountBook, getAccountBook } = await import(
+    "../utils/database"
+  );
   const [accounts, book] = await Promise.all([
     getAccountsByAccountBook(accountBookId),
     getAccountBook(accountBookId),
@@ -45,9 +50,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (contentType.includes("application/json")) {
     const body = await request.json();
     if (body.intent === "save-transactions") {
-      const { qifTransactions, accountId } = body as { qifTransactions: QIFTransaction[]; accountId: string };
+      const { qifTransactions, accountId } = body as {
+        qifTransactions: QIFTransaction[];
+        accountId: string;
+      };
       const { saveTransactions } = await import("../utils/database");
-      const saved = await saveTransactions(qifTransactions, accountId, accountBookId);
+      const saved = await saveTransactions(
+        qifTransactions,
+        accountId,
+        accountBookId
+      );
       return json({ ok: true, count: saved.length });
     }
     return json({ ok: false, error: "Unknown intent" }, { status: 400 });
@@ -56,9 +68,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const intent = formData.get("intent");
   if (intent === "create-account") {
     const name = (formData.get("name") || "").toString();
-    const totalMonthlyBalance = Number(formData.get("totalMonthlyBalance") || 0);
+    const totalMonthlyBalance = Number(
+      formData.get("totalMonthlyBalance") || 0
+    );
     const totalMonthlyDebits = Number(formData.get("totalMonthlyDebits") || 0);
-    const totalMonthlyCredits = Number(formData.get("totalMonthlyCredits") || 0);
+    const totalMonthlyCredits = Number(
+      formData.get("totalMonthlyCredits") || 0
+    );
     const { createAccount } = await import("../utils/database");
     const created = await createAccount(
       name,
@@ -105,23 +121,40 @@ export default function Dashboard() {
   const loaderData = useLoaderData<typeof loader>();
   const accountBookId = loaderData.accountBookId as string;
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem('pf_active_book_name', (loaderData as any).accountBookName || '');
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        "pf_active_book_name",
+        (loaderData as any).accountBookName || ""
+      );
     }
   }, [loaderData]);
-  const [accounts, setAccounts] = useState<DatabaseAccount[]>(loaderData?.accounts ?? []);
-  const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [accounts, setAccounts] = useState<DatabaseAccount[]>(
+    loaderData?.accounts ?? []
+  );
+  const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
+    useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [selectedAccountForUpload, setSelectedAccountForUpload] = useState<string>("");
+  const [selectedAccountForUpload, setSelectedAccountForUpload] =
+    useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [notification, setNotification] = useState<{
-    type: 'success' | 'error';
+    type: "success" | "error";
     message: string;
   } | null>(null);
   const fetcher = useFetcher<typeof action>();
-  const [confirm, setConfirm] = useState<{ open: boolean; title: string; description: string; intent: 'clear-all' | 'delete-account'; accountId: string } | null>(null);
-  const [monthClear, setMonthClear] = useState<{ open: boolean; accountId: string; selected?: string } | null>(null);
+  const [confirm, setConfirm] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    intent: "clear-all" | "delete-account";
+    accountId: string;
+  } | null>(null);
+  const [monthClear, setMonthClear] = useState<{
+    open: boolean;
+    accountId: string;
+    selected?: string;
+  } | null>(null);
 
   const accountForm = useForm({
     initialValues: {
@@ -131,7 +164,8 @@ export default function Dashboard() {
       totalMonthlyCredits: 0,
     },
     validate: {
-      name: (value) => (value.length < 2 ? "Name must be at least 2 characters" : null),
+      name: (value) =>
+        value.length < 2 ? "Name must be at least 2 characters" : null,
     },
   });
 
@@ -149,15 +183,23 @@ export default function Dashboard() {
     fd.set("totalMonthlyBalance", String(values.totalMonthlyBalance));
     fd.set("totalMonthlyDebits", String(values.totalMonthlyDebits));
     fd.set("totalMonthlyCredits", String(values.totalMonthlyCredits));
-    const res = await fetcher.submit(fd, { method: 'post' });
+    const res = await fetcher.submit(fd, { method: "post" });
   };
 
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data && (fetcher.data as any).ok && (fetcher.data as any).account) {
+    if (
+      fetcher.state === "idle" &&
+      fetcher.data &&
+      (fetcher.data as any).ok &&
+      (fetcher.data as any).account
+    ) {
       // Loader revalidation will refresh accounts; avoid local append to prevent duplicates
       setIsCreateAccountModalOpen(false);
       accountForm.reset();
-      setNotification({ type: 'success', message: 'Account created successfully!' });
+      setNotification({
+        type: "success",
+        message: "Account created successfully!",
+      });
     }
   }, [fetcher.state, fetcher.data]);
 
@@ -168,8 +210,8 @@ export default function Dashboard() {
   const handleUploadTransactions = async () => {
     if (!uploadedFile || !selectedAccountForUpload || !accountBookId) {
       setNotification({
-        type: 'error',
-        message: 'Please select a file and account before uploading.'
+        type: "error",
+        message: "Please select a file and account before uploading.",
       });
       return;
     }
@@ -179,33 +221,34 @@ export default function Dashboard() {
       const qifTransactions = await parseQIFFile(uploadedFile);
       if (qifTransactions.length === 0) {
         setNotification({
-          type: 'error',
-          message: 'No transactions found in the QIF file.'
+          type: "error",
+          message: "No transactions found in the QIF file.",
         });
         return;
       }
 
       await fetcher.submit(
-        { 
-          intent: 'save-transactions', 
-          qifTransactions: qifTransactions as any, 
-          accountId: selectedAccountForUpload 
+        {
+          intent: "save-transactions",
+          qifTransactions: qifTransactions as any,
+          accountId: selectedAccountForUpload,
         } as any,
-        { method: 'post', encType: 'application/json' }
+        { method: "post", encType: "application/json" }
       );
 
       setIsUploadModalOpen(false);
       setSelectedAccountForUpload("");
       setUploadedFile(null);
-      
+
       setNotification({
-        type: 'success',
-        message: `Successfully uploaded transactions!`
+        type: "success",
+        message: `Successfully uploaded transactions!`,
       });
     } catch (error) {
       setNotification({
-        type: 'error',
-        message: 'Failed to upload transactions. Please check the file format and try again.'
+        type: "error",
+        message:
+          "Failed to upload transactions. Please check the file format and try again.",
       });
     } finally {
       setIsUploading(false);
@@ -216,20 +259,30 @@ export default function Dashboard() {
     navigate(`/transactions/${accountBookId}`);
   };
 
-  const formatBarData = (historical: { month: string; debits: number; credits: number }[]) => {
-    const sorted = [...historical].sort((a, b) => a.month.localeCompare(b.month));
+  const formatBarData = (
+    historical: { month: string; debits: number; credits: number }[]
+  ) => {
+    const sorted = [...historical].sort((a, b) =>
+      a.month.localeCompare(b.month)
+    );
     const recent = sorted.slice(-6);
-    return recent.map(item => ({ month: item.month, Debits: item.debits, Credits: item.credits }));
+    return recent.map((item) => ({
+      month: item.month,
+      Debits: item.debits,
+      Credits: item.credits,
+    }));
   };
 
-  const [selectedForBalance, setSelectedForBalance] = useState<string>(accounts[0]?.id || "");
+  const [selectedForBalance, setSelectedForBalance] = useState<string>(
+    accounts[0]?.id || ""
+  );
 
   // Persist selected account for the balance chart per account book
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const storageKey = `pf_balance_selected_${accountBookId}`;
     const stored = window.localStorage.getItem(storageKey);
-    if (stored && accounts.some(a => a.id === stored)) {
+    if (stored && accounts.some((a) => a.id === stored)) {
       setSelectedForBalance(stored);
     } else if (accounts[0]?.id) {
       // Ensure a default is stored
@@ -241,22 +294,29 @@ export default function Dashboard() {
   const handleChangeSelectedForBalance = (id: string | null) => {
     if (id) {
       setSelectedForBalance(id);
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         window.localStorage.setItem(`pf_balance_selected_${accountBookId}`, id);
       }
     }
   };
 
   const balanceSeries = () => {
-    const account = accounts.find(a => a.id === selectedForBalance);
+    const account = accounts.find((a) => a.id === selectedForBalance);
     if (!account) return [] as any[];
-    const sorted = [...(account.historicalBalance as any)].sort((a: any, b: any) => a.month.localeCompare(b.month));
+    const sorted = [...(account.historicalBalance as any)].sort(
+      (a: any, b: any) => a.month.localeCompare(b.month)
+    );
     const recent = sorted.slice(-6);
     return [
       {
-        id: 'Balance',
-        data: recent.map((m: any) => ({ x: m.month, y: Number(m.balance ?? (m.credits - m.debits)) }))
-      }
+        id: "Balance",
+        data: recent.map((m: any) => ({
+          x: m.month,
+          y: Number(
+            typeof m.balance === "number" ? m.balance : m.credits - m.debits
+          ),
+        })),
+      },
     ];
   };
 
@@ -264,10 +324,10 @@ export default function Dashboard() {
     <Container size="xl" py="xl">
       <Stack gap="xl">
         {notification && (
-          <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 1000 }}>
+          <div style={{ position: "fixed", top: 16, right: 16, zIndex: 1000 }}>
             <Notification
-              title={notification.type === 'success' ? 'Success' : 'Error'}
-              color={notification.type === 'success' ? 'green' : 'red'}
+              title={notification.type === "success" ? "Success" : "Error"}
+              color={notification.type === "success" ? "green" : "red"}
               onClose={() => setNotification(null)}
               withCloseButton
             >
@@ -279,10 +339,18 @@ export default function Dashboard() {
         <Group justify="space-between" align="center">
           <Title order={1}>Account Book Dashboard</Title>
           <Group>
-            <Button variant="filled" leftSection={<IconPlus size={16} />} onClick={() => setIsCreateAccountModalOpen(true)}>
+            <Button
+              variant="filled"
+              leftSection={<IconPlus size={16} />}
+              onClick={() => setIsCreateAccountModalOpen(true)}
+            >
               Create Account
             </Button>
-            <Button variant="light" leftSection={<IconUpload size={16} />} onClick={() => setIsUploadModalOpen(true)}>
+            <Button
+              variant="light"
+              leftSection={<IconUpload size={16} />}
+              onClick={() => setIsUploadModalOpen(true)}
+            >
               Upload QIF
             </Button>
           </Group>
@@ -303,7 +371,9 @@ export default function Dashboard() {
                   <Group justify="space-between" align="center">
                     <Title order={3}>Monthly Balance (6 months)</Title>
                     <Select
-                      data={[...accounts].sort((a,b) => a.name.localeCompare(b.name)).map(a => ({ value: a.id, label: a.name }))}
+                      data={[...accounts]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((a) => ({ value: a.id, label: a.name }))}
                       value={selectedForBalance}
                       onChange={(v) => handleChangeSelectedForBalance(v)}
                       placeholder="Select account"
@@ -313,11 +383,11 @@ export default function Dashboard() {
                     <ResponsiveLine
                       data={balanceSeries()}
                       margin={{ top: 10, right: 20, bottom: 40, left: 50 }}
-                      xScale={{ type: 'point' }}
-                      yScale={{ type: 'linear', min: 'auto', max: 'auto' }}
+                      xScale={{ type: "point" }}
+                      yScale={{ type: "linear", min: "auto", max: "auto" }}
                       axisBottom={{ tickRotation: 0 }}
                       axisLeft={{}}
-                      colors={[ '#228be6' ]}
+                      colors={["#228be6"]}
                       pointSize={8}
                       useMesh
                     />
@@ -329,46 +399,106 @@ export default function Dashboard() {
             {/* Right: Column of per-account debit/credit bar graphs with settings (1/3) */}
             <Grid.Col span={{ base: 12, lg: 4 }}>
               <Stack gap="md">
-                {[...accounts].sort((a,b) => a.name.localeCompare(b.name)).map((account) => (
-                  <Card key={account.id} shadow="sm" padding="lg" radius="md" withBorder>
-                    <Stack gap="sm">
-                      <Group justify="space-between" align="center">
-                        <Text fw={600}>{account.name}</Text>
-                        <Menu shadow="md" width={220} position="bottom-end">
-                          <Menu.Target>
-                            <ActionIcon variant="subtle" color="gray" size="lg" radius="md" aria-label="Settings">
-                              <IconSettings size={18} />
-                            </ActionIcon>
-                          </Menu.Target>
-                          <Menu.Dropdown>
-                            <Menu.Item onClick={() => setMonthClear({ open: true, accountId: account.id })}>Clear month…</Menu.Item>
-                            <Menu.Item color="red" onClick={() => setConfirm({ open: true, title: 'Clear all data', description: 'This will remove all transactions for this account. This action cannot be undone.', intent: 'clear-all', accountId: account.id })}>Clear all data</Menu.Item>
-                            <Divider my="xs" />
-                            <Menu.Item color="red" onClick={() => setConfirm({ open: true, title: 'Delete account', description: 'This will delete the account and all its data. This action cannot be undone.', intent: 'delete-account', accountId: account.id })}>Delete account</Menu.Item>
-                          </Menu.Dropdown>
-                        </Menu>
-                      </Group>
-                      {account.historicalBalance.length > 0 && (
-                        <div style={{ height: 180 }}>
-                          <ResponsiveBar
-                            data={formatBarData(account.historicalBalance as any)}
-                            keys={["Debits", "Credits"]}
-                            indexBy="month"
-                            groupMode="grouped"
-                            margin={{ top: 10, right: 10, bottom: 30, left: 40 }}
-                            padding={0.3}
-                            colors={(bar) => (bar.id === 'Debits' ? '#fa5252' : '#37b24d')}
-                            axisBottom={{ tickRotation: 0 }}
-                            axisLeft={{}}
-                            valueFormat={(v) => `$${Number(v).toFixed(2)}`}
-                            labelSkipWidth={24}
-                            labelSkipHeight={14}
-                          />
-                        </div>
-                      )}
-                    </Stack>
-                  </Card>
-                ))}
+                {[...accounts]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((account) => (
+                    <Card
+                      key={account.id}
+                      shadow="sm"
+                      padding="lg"
+                      radius="md"
+                      withBorder
+                    >
+                      <Stack gap="sm">
+                        <Group justify="space-between" align="center">
+                          <Text fw={600}>{account.name}</Text>
+                          <Menu shadow="md" width={220} position="bottom-end">
+                            <Menu.Target>
+                              <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="lg"
+                                radius="md"
+                                aria-label="Settings"
+                              >
+                                <IconSettings size={18} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item
+                                onClick={() =>
+                                  setMonthClear({
+                                    open: true,
+                                    accountId: account.id,
+                                  })
+                                }
+                              >
+                                Clear month…
+                              </Menu.Item>
+                              <Menu.Item
+                                color="red"
+                                onClick={() =>
+                                  setConfirm({
+                                    open: true,
+                                    title: "Clear all data",
+                                    description:
+                                      "This will remove all transactions for this account. This action cannot be undone.",
+                                    intent: "clear-all",
+                                    accountId: account.id,
+                                  })
+                                }
+                              >
+                                Clear all data
+                              </Menu.Item>
+                              <Divider my="xs" />
+                              <Menu.Item
+                                color="red"
+                                onClick={() =>
+                                  setConfirm({
+                                    open: true,
+                                    title: "Delete account",
+                                    description:
+                                      "This will delete the account and all its data. This action cannot be undone.",
+                                    intent: "delete-account",
+                                    accountId: account.id,
+                                  })
+                                }
+                              >
+                                Delete account
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        </Group>
+                        {account.historicalBalance.length > 0 && (
+                          <div style={{ height: 180 }}>
+                            <ResponsiveBar
+                              data={formatBarData(
+                                (account.historicalBalance as any) || []
+                              )}
+                              keys={["Debits", "Credits"]}
+                              indexBy="month"
+                              groupMode="grouped"
+                              margin={{
+                                top: 10,
+                                right: 10,
+                                bottom: 30,
+                                left: 40,
+                              }}
+                              padding={0.3}
+                              colors={(bar) =>
+                                bar.id === "Debits" ? "#fa5252" : "#37b24d"
+                              }
+                              axisBottom={{ tickRotation: 0 }}
+                              axisLeft={{}}
+                              valueFormat={(v) => `$${Number(v).toFixed(2)}`}
+                              labelSkipWidth={24}
+                              labelSkipHeight={14}
+                            />
+                          </div>
+                        )}
+                      </Stack>
+                    </Card>
+                  ))}
               </Stack>
             </Grid.Col>
           </Grid>
@@ -376,8 +506,8 @@ export default function Dashboard() {
       </Stack>
 
       {/* Create Account Modal */}
-      <Modal 
-        opened={isCreateAccountModalOpen} 
+      <Modal
+        opened={isCreateAccountModalOpen}
         onClose={() => setIsCreateAccountModalOpen(false)}
         title="Create New Account"
         centered
@@ -409,69 +539,114 @@ export default function Dashboard() {
               {...accountForm.getInputProps("totalMonthlyCredits")}
             />
             <Group justify="flex-end">
-              <Button variant="light" onClick={() => setIsCreateAccountModalOpen(false)}>
+              <Button
+                variant="light"
+                onClick={() => setIsCreateAccountModalOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit">
-                Create Account
-              </Button>
+              <Button type="submit">Create Account</Button>
             </Group>
           </Stack>
         </form>
       </Modal>
 
       {/* Confirmation Modal */}
-      <Modal opened={!!confirm} onClose={() => setConfirm(null)} title={confirm?.title} centered>
+      <Modal
+        opened={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={confirm?.title}
+        centered
+      >
         <Stack gap="md">
           <Text>{confirm?.description}</Text>
           <Group justify="flex-end">
-            <Button variant="light" onClick={() => setConfirm(null)}>Cancel</Button>
-            <Button color="red" onClick={() => {
-              if (!confirm) return;
-              const fd = new FormData();
-              fd.set('intent', confirm.intent);
-              fd.set('accountId', confirm.accountId);
-              fetcher.submit(fd, { method: 'post' });
-              setConfirm(null);
-              setNotification({ type: 'success', message: confirm.intent === 'delete-account' ? 'Account deleted' : 'All data cleared' });
-            }}>Confirm</Button>
+            <Button variant="light" onClick={() => setConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={() => {
+                if (!confirm) return;
+                const fd = new FormData();
+                fd.set("intent", confirm.intent);
+                fd.set("accountId", confirm.accountId);
+                fetcher.submit(fd, { method: "post" });
+                setConfirm(null);
+                setNotification({
+                  type: "success",
+                  message:
+                    confirm.intent === "delete-account"
+                      ? "Account deleted"
+                      : "All data cleared",
+                });
+              }}
+            >
+              Confirm
+            </Button>
           </Group>
         </Stack>
       </Modal>
 
       {/* Clear specific month modal */}
-      <Modal opened={!!monthClear} onClose={() => setMonthClear(null)} title="Clear month data" centered>
+      <Modal
+        opened={!!monthClear}
+        onClose={() => setMonthClear(null)}
+        title="Clear month data"
+        centered
+      >
         <Stack gap="md">
           <Select
             label="Select month"
             placeholder="YYYY-MM"
             data={(() => {
-              const acct = accounts.find(a => a.id === monthClear?.accountId);
-              const months: string[] = acct ? (acct.historicalBalance as any).map((m: any) => String(m.month)) : [];
-              return Array.from(new Set(months)).sort().reverse().map((m: string) => ({ value: m, label: m }));
+              const acct = accounts.find((a) => a.id === monthClear?.accountId);
+              const months: string[] = acct
+                ? (acct.historicalBalance as any).map((m: any) =>
+                    String(m.month)
+                  )
+                : [];
+              return Array.from(new Set(months))
+                .sort()
+                .reverse()
+                .map((m: string) => ({ value: m, label: m }));
             })()}
-            value={monthClear?.selected || ''}
-            onChange={(v) => setMonthClear(prev => prev ? { ...prev, selected: v || '' } : prev)}
+            value={monthClear?.selected || ""}
+            onChange={(v) =>
+              setMonthClear((prev) =>
+                prev ? { ...prev, selected: v || "" } : prev
+              )
+            }
           />
           <Group justify="flex-end">
-            <Button variant="light" onClick={() => setMonthClear(null)}>Cancel</Button>
-            <Button color="red" onClick={() => {
-              if (!monthClear || !monthClear.selected) return;
-              const fd = new FormData();
-              fd.set('intent', 'clear-month');
-              fd.set('accountId', monthClear.accountId);
-              fd.set('month', monthClear.selected);
-              fetcher.submit(fd, { method: 'post' });
-              setMonthClear(null);
-              setNotification({ type: 'success', message: 'Selected month cleared' });
-            }}>Clear</Button>
+            <Button variant="light" onClick={() => setMonthClear(null)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={() => {
+                if (!monthClear || !monthClear.selected) return;
+                const fd = new FormData();
+                fd.set("intent", "clear-month");
+                fd.set("accountId", monthClear.accountId);
+                fd.set("month", monthClear.selected);
+                fetcher.submit(fd, { method: "post" });
+                setMonthClear(null);
+                setNotification({
+                  type: "success",
+                  message: "Selected month cleared",
+                });
+              }}
+            >
+              Clear
+            </Button>
           </Group>
         </Stack>
       </Modal>
 
       {/* Upload QIF Modal */}
-      <Modal 
-        opened={isUploadModalOpen} 
+      <Modal
+        opened={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         title="Upload QIF File"
         centered
@@ -480,7 +655,10 @@ export default function Dashboard() {
           <Select
             label="Select Account"
             placeholder="Choose an account"
-            data={accounts.map(account => ({ value: account.id, label: account.name }))}
+            data={accounts.map((account) => ({
+              value: account.id,
+              label: account.name,
+            }))}
             value={selectedAccountForUpload}
             onChange={(value) => setSelectedAccountForUpload(value || "")}
             required
@@ -496,16 +674,18 @@ export default function Dashboard() {
             <Button variant="light" onClick={() => setIsUploadModalOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleUploadTransactions}
-              disabled={!selectedAccountForUpload || !uploadedFile || isUploading}
+              disabled={
+                !selectedAccountForUpload || !uploadedFile || isUploading
+              }
               loading={isUploading}
             >
-              {isUploading ? 'Uploading...' : 'Upload'}
+              {isUploading ? "Uploading..." : "Upload"}
             </Button>
           </Group>
         </Stack>
       </Modal>
     </Container>
   );
-} 
+}

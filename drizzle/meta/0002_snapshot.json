@@ -1,0 +1,60 @@
+{
+  "id": "0002",
+  "prevId": "0001",
+  "version": "5",
+  "dialect": "postgresql",
+  "tables": {
+    "category_rules": {
+      "name": "category_rules",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "account_book_id": {
+          "name": "account_book_id",
+          "type": "uuid",
+          "notNull": true
+        },
+        "keyword": { "name": "keyword", "type": "text", "notNull": true },
+        "category": { "name": "category", "type": "text", "notNull": true },
+        "sub_category": {
+          "name": "sub_category",
+          "type": "text",
+          "notNull": true,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": [],
+      "foreignKeys": {
+        "category_rules_account_book_id_account_books_id_fk": {
+          "name": "category_rules_account_book_id_account_books_id_fk",
+          "tableFrom": "category_rules",
+          "columnsFrom": ["account_book_id"],
+          "tableTo": "account_books",
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": [],
+      "uniqueConstraints": []
+    }
+  }
+}

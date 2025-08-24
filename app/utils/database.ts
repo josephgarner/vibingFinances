@@ -1,7 +1,12 @@
-import { eq, and, gte, lte, lt } from 'drizzle-orm';
-import { db } from '../db';
-import { accountBooks, accounts, transactions } from '../db/schema';
-import type { QIFTransaction } from './qifParser';
+import { eq, and, gte, lte, lt } from "drizzle-orm";
+import { db } from "../db";
+import {
+  accountBooks,
+  accounts,
+  transactions,
+  categoryRules,
+} from "../db/schema";
+import type { QIFTransaction } from "./qifParser";
 
 export interface DatabaseTransaction {
   id: string;
@@ -26,7 +31,12 @@ export interface DatabaseAccount {
   totalMonthlyCredits: number;
   updatedAt: string;
   accountBookId: string;
-  historicalBalance: { month: string; debits: number; credits: number }[];
+  historicalBalance: {
+    month: string;
+    debits: number;
+    credits: number;
+    balance?: number;
+  }[];
 }
 
 export interface DatabaseAccountBook {
@@ -35,25 +45,58 @@ export interface DatabaseAccountBook {
   updatedAt: string;
 }
 
+export interface DatabaseCategoryRule {
+  id: string;
+  accountBookId: string;
+  keyword: string;
+  category: string;
+  subCategory: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function saveTransactions(
-  qifTransactions: QIFTransaction[], 
-  accountId: string, 
+  qifTransactions: QIFTransaction[],
+  accountId: string,
   accountBookId: string
 ): Promise<DatabaseTransaction[]> {
   const savedTransactions: DatabaseTransaction[] = [];
-  
+  // Apply category rules before saving
+  const rules = await getCategoryRules(accountBookId);
+  const normalizedRules = rules.map((r) => ({
+    ...r,
+    keywordLc: r.keyword.toLowerCase(),
+  }));
+
   for (const qifTransaction of qifTransactions) {
-    const [transaction] = await db.insert(transactions).values({
-      transactionDate: new Date(qifTransaction.transactionDate),
-      description: qifTransaction.description,
-      category: qifTransaction.category,
-      subCategory: qifTransaction.subCategory,
-      debitAmount: qifTransaction.debitAmount.toString(),
-      creditAmount: qifTransaction.creditAmount.toString(),
-      linkedTransactionId: qifTransaction.linkedTransactionId ? qifTransaction.linkedTransactionId : null,
-      accountId,
-      accountBookId,
-    }).returning();
+    // If uncategorized, try to apply first matching rule by keyword substring on description
+    const isUncategorized =
+      !qifTransaction.category ||
+      qifTransaction.category.toLowerCase() === "uncategorized";
+    if (isUncategorized) {
+      const descLc = (qifTransaction.description || "").toLowerCase();
+      const match = normalizedRules.find((r) => descLc.includes(r.keywordLc));
+      if (match) {
+        qifTransaction.category = match.category;
+        qifTransaction.subCategory = match.subCategory || "";
+      }
+    }
+    const [transaction] = await db
+      .insert(transactions)
+      .values({
+        transactionDate: new Date(qifTransaction.transactionDate),
+        description: qifTransaction.description,
+        category: qifTransaction.category,
+        subCategory: qifTransaction.subCategory,
+        debitAmount: qifTransaction.debitAmount.toString(),
+        creditAmount: qifTransaction.creditAmount.toString(),
+        linkedTransactionId: qifTransaction.linkedTransactionId
+          ? qifTransaction.linkedTransactionId
+          : null,
+        accountId,
+        accountBookId,
+      })
+      .returning();
 
     savedTransactions.push({
       id: transaction.id,
@@ -73,12 +116,14 @@ export async function saveTransactions(
 
   // Update account totals
   await updateAccountTotals(accountId);
-  
+
   return savedTransactions;
 }
 
 export async function updateAccountTotals(accountId: string): Promise<void> {
-  const account = await db.query.accounts.findFirst({ where: eq(accounts.id, accountId) });
+  const account = await db.query.accounts.findFirst({
+    where: eq(accounts.id, accountId),
+  });
   if (!account) return;
 
   // Fetch all transactions for this account and group by month (YYYY-MM)
@@ -104,7 +149,11 @@ export async function updateAccountTotals(accountId: string): Promise<void> {
 
   // Historical balances for all months with running balance snapshot
   const monthly = Array.from(monthToTotals.entries())
-    .map(([month, totals]) => ({ month, debits: totals.debits, credits: totals.credits }))
+    .map(([month, totals]) => ({
+      month,
+      debits: totals.debits,
+      credits: totals.credits,
+    }))
     .sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0));
 
   let runningBalance = 0;
@@ -114,10 +163,16 @@ export async function updateAccountTotals(accountId: string): Promise<void> {
   });
 
   // End-of-month running balance snapshot for current month (previous balance + this month's net)
-  const currentMonthEntry = historicalBalance.find((h) => h.month === currentMonth);
-  const totalMonthlyBalance = currentMonthEntry ? currentMonthEntry.balance ?? (currentMonthEntry.credits - currentMonthEntry.debits) : 0;
+  const currentMonthEntry = historicalBalance.find(
+    (h) => h.month === currentMonth
+  );
+  const totalMonthlyBalance = currentMonthEntry
+    ? currentMonthEntry.balance ??
+      currentMonthEntry.credits - currentMonthEntry.debits
+    : 0;
 
-  await db.update(accounts)
+  await db
+    .update(accounts)
     .set({
       totalMonthlyBalance: totalMonthlyBalance.toString(),
       totalMonthlyDebits: totalMonthlyDebits.toString(),
@@ -129,12 +184,12 @@ export async function updateAccountTotals(accountId: string): Promise<void> {
 }
 
 export async function getTransactionsByAccountAndMonth(
-  accountId: string, 
+  accountId: string,
   month: Date
 ): Promise<DatabaseTransaction[]> {
   const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
   const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-  
+
   const transactionList = await db.query.transactions.findMany({
     where: and(
       eq(transactions.accountId, accountId),
@@ -144,7 +199,7 @@ export async function getTransactionsByAccountAndMonth(
     orderBy: transactions.transactionDate,
   });
 
-  return transactionList.map(transaction => ({
+  return transactionList.map((transaction) => ({
     id: transaction.id,
     transactionDate: transaction.transactionDate.toISOString(),
     description: transaction.description,
@@ -160,9 +215,120 @@ export async function getTransactionsByAccountAndMonth(
   }));
 }
 
-export async function clearAccountLastMonthData(accountId: string): Promise<void> {
+export async function getDistinctCategories(
+  accountBookId: string
+): Promise<string[]> {
+  const list = await db.query.transactions.findMany({
+    where: eq(transactions.accountBookId, accountBookId),
+    orderBy: transactions.category,
+  });
+  const set = new Set<string>();
+  for (const t of list) {
+    if (t.category && t.category.trim().length > 0) set.add(t.category);
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
+export async function updateTransactionsCategory(
+  transactionIds: string[],
+  category: string,
+  subCategory: string
+): Promise<number> {
+  let updated = 0;
+  for (const id of transactionIds) {
+    await db
+      .update(transactions)
+      .set({ category, subCategory, updatedAt: new Date() })
+      .where(eq(transactions.id, id));
+    // drizzle doesn't return affected rows count here; approximate
+    updated += 1;
+  }
+  return updated;
+}
+
+export async function getCategoryRules(
+  accountBookId: string
+): Promise<DatabaseCategoryRule[]> {
+  const rules = await db.query.categoryRules.findMany({
+    where: eq(categoryRules.accountBookId, accountBookId),
+    orderBy: categoryRules.createdAt,
+  });
+  return rules.map((r) => ({
+    id: r.id,
+    accountBookId: r.accountBookId,
+    keyword: r.keyword,
+    category: r.category,
+    subCategory: r.subCategory,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+export async function createCategoryRule(
+  accountBookId: string,
+  keyword: string,
+  category: string,
+  subCategory: string
+): Promise<DatabaseCategoryRule> {
+  const [rule] = await db
+    .insert(categoryRules)
+    .values({
+      accountBookId,
+      keyword,
+      category,
+      subCategory,
+    })
+    .returning();
+  return {
+    id: rule.id,
+    accountBookId: rule.accountBookId,
+    keyword: rule.keyword,
+    category: rule.category,
+    subCategory: rule.subCategory,
+    createdAt: rule.createdAt.toISOString(),
+    updatedAt: rule.updatedAt.toISOString(),
+  };
+}
+
+export async function applyRulesToUncategorized(
+  accountBookId: string
+): Promise<number> {
+  const rules = await getCategoryRules(accountBookId);
+  if (rules.length === 0) return 0;
+  const normalized = rules.map((r) => ({
+    ...r,
+    keywordLc: r.keyword.toLowerCase(),
+  }));
+  const list = await db.query.transactions.findMany({
+    where: eq(transactions.accountBookId, accountBookId),
+    orderBy: transactions.transactionDate,
+  });
+  let count = 0;
+  for (const t of list) {
+    const isUncategorized =
+      !t.category || t.category.toLowerCase() === "uncategorized";
+    if (!isUncategorized) continue;
+    const descLc = (t.description || "").toLowerCase();
+    const match = normalized.find((r) => descLc.includes(r.keywordLc));
+    if (match) {
+      await db
+        .update(transactions)
+        .set({
+          category: match.category,
+          subCategory: match.subCategory,
+          updatedAt: new Date(),
+        })
+        .where(eq(transactions.id, t.id));
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export async function clearAccountLastMonthData(
+  accountId: string
+): Promise<void> {
   const now = new Date();
-  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
@@ -189,9 +355,12 @@ export async function deleteAccount(accountId: string): Promise<void> {
   await db.delete(accounts).where(eq(accounts.id, accountId));
 }
 
-export async function clearAccountMonthData(accountId: string, monthYYYYMM: string): Promise<void> {
+export async function clearAccountMonthData(
+  accountId: string,
+  monthYYYYMM: string
+): Promise<void> {
   // monthYYYYMM like '2025-03'
-  const [yearStr, monthStr] = monthYYYYMM.split('-');
+  const [yearStr, monthStr] = monthYYYYMM.split("-");
   const y = Number(yearStr);
   const m = Number(monthStr) - 1; // JS month 0-based
   const start = new Date(y, m, 1);
@@ -210,12 +379,14 @@ export async function clearAccountMonthData(accountId: string, monthYYYYMM: stri
   await updateAccountTotals(accountId);
 }
 
-export async function getAccountsByAccountBook(accountBookId: string): Promise<DatabaseAccount[]> {
+export async function getAccountsByAccountBook(
+  accountBookId: string
+): Promise<DatabaseAccount[]> {
   const accountList = await db.query.accounts.findMany({
     where: eq(accounts.accountBookId, accountBookId),
   });
 
-  return accountList.map(account => ({
+  return accountList.map((account) => ({
     id: account.id,
     name: account.name,
     totalMonthlyBalance: parseFloat(account.totalMonthlyBalance),
@@ -223,7 +394,19 @@ export async function getAccountsByAccountBook(accountBookId: string): Promise<D
     totalMonthlyCredits: parseFloat(account.totalMonthlyCredits),
     updatedAt: account.updatedAt.toISOString(),
     accountBookId: account.accountBookId,
-    historicalBalance: (account.historicalBalance as any) || [],
+    historicalBalance: (
+      (account.historicalBalance as unknown as {
+        month: string;
+        debits: number;
+        credits: number;
+        balance?: number;
+      }[]) || []
+    ).map((h) => ({
+      month: h.month,
+      debits: h.debits,
+      credits: h.credits,
+      balance: h.balance,
+    })),
   }));
 }
 
@@ -232,17 +415,22 @@ export async function getAccountBooks(): Promise<DatabaseAccountBook[]> {
     orderBy: accountBooks.updatedAt,
   });
 
-  return accountBookList.map(accountBook => ({
+  return accountBookList.map((accountBook) => ({
     id: accountBook.id,
     name: accountBook.name,
     updatedAt: accountBook.updatedAt.toISOString(),
   }));
 }
 
-export async function createAccountBook(name: string): Promise<DatabaseAccountBook> {
-  const [accountBook] = await db.insert(accountBooks).values({
-    name,
-  }).returning();
+export async function createAccountBook(
+  name: string
+): Promise<DatabaseAccountBook> {
+  const [accountBook] = await db
+    .insert(accountBooks)
+    .values({
+      name,
+    })
+    .returning();
 
   return {
     id: accountBook.id,
@@ -259,17 +447,24 @@ export async function createAccount(
   accountBookId: string
 ): Promise<DatabaseAccount> {
   const currentMonth = new Date().toISOString().slice(0, 7);
-  
-  const [account] = await db.insert(accounts).values({
-    name,
-    totalMonthlyBalance: totalMonthlyBalance.toString(),
-    totalMonthlyDebits: totalMonthlyDebits.toString(),
-    totalMonthlyCredits: totalMonthlyCredits.toString(),
-    accountBookId,
-    historicalBalance: [
-      { month: currentMonth, debits: totalMonthlyDebits, credits: totalMonthlyCredits }
-    ],
-  }).returning();
+
+  const [account] = await db
+    .insert(accounts)
+    .values({
+      name,
+      totalMonthlyBalance: totalMonthlyBalance.toString(),
+      totalMonthlyDebits: totalMonthlyDebits.toString(),
+      totalMonthlyCredits: totalMonthlyCredits.toString(),
+      accountBookId,
+      historicalBalance: [
+        {
+          month: currentMonth,
+          debits: totalMonthlyDebits,
+          credits: totalMonthlyCredits,
+        },
+      ],
+    })
+    .returning();
 
   return {
     id: account.id,
@@ -283,7 +478,9 @@ export async function createAccount(
   };
 }
 
-export async function getAccountBook(id: string): Promise<DatabaseAccountBook | null> {
+export async function getAccountBook(
+  id: string
+): Promise<DatabaseAccountBook | null> {
   const accountBook = await db.query.accountBooks.findFirst({
     where: eq(accountBooks.id, id),
   });
@@ -295,4 +492,4 @@ export async function getAccountBook(id: string): Promise<DatabaseAccountBook | 
     name: accountBook.name,
     updatedAt: accountBook.updatedAt.toISOString(),
   };
-} 
+}
