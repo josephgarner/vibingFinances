@@ -1,14 +1,18 @@
 version: '3.8'
 
 services:
-  app:
+  vibeFinances:
     build: .
     ports:
-      - "5724:3000"
+      - "4029:3000"
+    networks:
+      - vibe_network
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
     volumes:
       - ./uploads:/app/uploads
 
-volumes:
-  postgres_data: 
+networks:
+  vibe_network:
+    driver: bridge
