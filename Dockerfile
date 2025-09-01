@@ -1,23 +1,18 @@
-# Use Node.js 22 as base image
-FROM node:22-alpine
-
-# Set working directory
+# Build stage
+FROM node:22-alpine AS builder
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy application code
+RUN npm ci
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Expose port
+# Runtime stage
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/public ./public
 EXPOSE 3000
-
-# Start the application
-CMD ["npm", "start"] 
+CMD ["npm", "start"]
